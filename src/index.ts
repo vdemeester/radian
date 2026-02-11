@@ -8,8 +8,9 @@ import { Command } from "commander";
 import { parseAllSessions } from "./parser.js";
 import { filterSessions, getFilterLabel } from "./filters.js";
 import { aggregate } from "./aggregator.js";
-import { printSummary, printTools, printModels, printProjects, printSessions } from "./formatters/table.js";
+import { printSummary, printTools, printToolAudit, printModels, printProjects, printSessions } from "./formatters/table.js";
 import { printJson } from "./formatters/json.js";
+import { discoverRegisteredTools, buildToolAudit } from "./inventory.js";
 import type { FilterOptions, PeriodName } from "./types.js";
 
 const program = new Command();
@@ -28,7 +29,10 @@ function addCommonOptions(cmd: Command): Command {
     .option("--project <path>", "Filter by project path (substring match)")
     .option("-f, --format <format>", "Output format: table, json", "table")
     .option("-l, --limit <n>", "Max rows in tables", "20")
-    .option("--sessions-dir <path>", "Override session directory");
+    .option("--sessions-dir <path>", "Override session directory")
+    .option("--no-cache", "Bypass cache, force re-parse")
+    .option("--cache-dir <path>", "Override cache directory")
+    .option("--extensions-dir <path>", "Override extensions directory");
 }
 
 interface CommonOpts {
@@ -39,6 +43,9 @@ interface CommonOpts {
   format: string;
   limit: string;
   sessionsDir?: string;
+  cache: boolean;
+  cacheDir?: string;
+  extensionsDir?: string;
 }
 
 function buildFilterOpts(opts: CommonOpts): FilterOptions {
@@ -51,7 +58,11 @@ function buildFilterOpts(opts: CommonOpts): FilterOptions {
 }
 
 function loadAndAggregate(opts: CommonOpts) {
-  const allSessions = parseAllSessions({ sessionsDir: opts.sessionsDir });
+  const allSessions = parseAllSessions({
+    sessionsDir: opts.sessionsDir,
+    cacheDir: opts.cacheDir,
+    noCache: !opts.cache,
+  });
   const filterOpts = buildFilterOpts(opts);
   const filtered = filterSessions(allSessions, filterOpts);
   return aggregate(filtered, filterOpts);
@@ -75,13 +86,23 @@ addCommonOptions(
 addCommonOptions(
   program
     .command("tools")
-    .description("Tool usage breakdown")
-).action((opts: CommonOpts) => {
+    .description("Tool usage breakdown & audit")
+    .option("--audit", "Show tool audit (never/rarely used, extension breakdown)")
+).action((opts: CommonOpts & { audit?: boolean }) => {
   const stats = loadAndAggregate(opts);
   if (opts.format === "json") {
     printJson(stats, "tools");
   } else {
     printTools(stats, parseInt(opts.limit));
+    if (opts.audit) {
+      const registered = discoverRegisteredTools(opts.extensionsDir);
+      const calledTools = new Map<string, { calls: number; lastUsed: Date | null }>();
+      for (const [name, tool] of stats.tools) {
+        calledTools.set(name, { calls: tool.calls, lastUsed: tool.lastUsed });
+      }
+      const audit = buildToolAudit(registered, calledTools);
+      printToolAudit(audit);
+    }
   }
 });
 

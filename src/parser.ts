@@ -6,6 +6,7 @@
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { join, basename } from "node:path";
 import { homedir } from "node:os";
+import { Cache } from "./cache.js";
 import type {
   FileEntry,
   SessionHeader,
@@ -22,6 +23,8 @@ const DEFAULT_SESSIONS_DIR = join(homedir(), ".pi", "agent", "sessions");
 
 export interface ParseOptions {
   sessionsDir?: string;
+  cacheDir?: string;
+  noCache?: boolean;
 }
 
 /** Discover all session JSONL files across all project directories. */
@@ -194,12 +197,28 @@ export function parseSessionStats(filePath: string): SessionStats | null {
 /** Parse all sessions and return per-session stats. */
 export function parseAllSessions(opts?: ParseOptions): SessionStats[] {
   const files = discoverSessionFiles(opts?.sessionsDir);
+  const cache = opts?.noCache ? null : new Cache(opts?.cacheDir);
   const results: SessionStats[] = [];
 
   for (const file of files) {
     try {
+      const mtime = statSync(file).mtimeMs;
+
+      // Try cache first
+      if (cache) {
+        const cached = cache.get(file, mtime);
+        if (cached) {
+          results.push(cached);
+          continue;
+        }
+      }
+
+      // Parse and cache
       const stats = parseSessionStats(file);
-      if (stats) results.push(stats);
+      if (stats) {
+        if (cache) cache.set(file, mtime, stats);
+        results.push(stats);
+      }
     } catch {
       // Skip unparseable files
     }

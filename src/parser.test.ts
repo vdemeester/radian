@@ -1,6 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { join } from "node:path";
-import { parseSessionFile, parseSessionStats, cwdToProject, decodeDirName } from "./parser.js";
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, copyFileSync, readdirSync, existsSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { parseSessionFile, parseSessionStats, parseAllSessions, cwdToProject, decodeDirName } from "./parser.js";
 
 const FIXTURES = join(import.meta.dirname, "fixtures");
 
@@ -118,5 +120,61 @@ describe("decodeDirName", () => {
 
   it("handles simple names", () => {
     expect(decodeDirName("--home-user--")).toBe("/home/user");
+  });
+});
+
+describe("parseAllSessions with cache", () => {
+  let sessionsDir: string;
+  let cacheDir: string;
+
+  beforeEach(() => {
+    sessionsDir = mkdtempSync(join(tmpdir(), "radian-sessions-"));
+    cacheDir = mkdtempSync(join(tmpdir(), "radian-cache-"));
+    // Create a fake project dir with session files
+    const projectDir = join(sessionsDir, "--test-project--");
+    mkdirSync(projectDir);
+    copyFileSync(
+      join(import.meta.dirname, "fixtures", "sample-session.jsonl"),
+      join(projectDir, "2026-02-10T10-00-00_test-001.jsonl")
+    );
+    copyFileSync(
+      join(import.meta.dirname, "fixtures", "session-with-errors.jsonl"),
+      join(projectDir, "2026-02-11T14-00-00_test-002.jsonl")
+    );
+  });
+
+  afterEach(() => {
+    rmSync(sessionsDir, { recursive: true, force: true });
+    rmSync(cacheDir, { recursive: true, force: true });
+  });
+
+  it("parses all sessions from a custom directory", () => {
+    const results = parseAllSessions({ sessionsDir });
+    expect(results.length).toBe(2);
+  });
+
+  it("creates cache files on first parse", () => {
+    parseAllSessions({ sessionsDir, cacheDir });
+    const v1Dir = join(cacheDir, "v1");
+    expect(existsSync(v1Dir)).toBe(true);
+    const cacheFiles = readdirSync(v1Dir).filter((f) => f.endsWith(".json"));
+    expect(cacheFiles.length).toBe(2);
+  });
+
+  it("uses cache on second parse (same results)", () => {
+    const results1 = parseAllSessions({ sessionsDir, cacheDir });
+    const results2 = parseAllSessions({ sessionsDir, cacheDir });
+    expect(results2.length).toBe(results1.length);
+    // Sort both by id for stable comparison
+    results1.sort((a, b) => a.id.localeCompare(b.id));
+    results2.sort((a, b) => a.id.localeCompare(b.id));
+    expect(results2[0].id).toBe(results1[0].id);
+    expect(results2[0].toolCalls).toBe(results1[0].toolCalls);
+  });
+
+  it("bypasses cache with noCache flag", () => {
+    parseAllSessions({ sessionsDir, cacheDir });
+    const results = parseAllSessions({ sessionsDir, cacheDir, noCache: true });
+    expect(results.length).toBe(2);
   });
 });

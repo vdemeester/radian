@@ -5,6 +5,7 @@
 
 import type { AggregatedStats } from "../types.js";
 import { topBy } from "../aggregator.js";
+import type { ToolAudit } from "../inventory.js";
 import {
   formatNum,
   formatDuration,
@@ -82,6 +83,44 @@ export function printTools(stats: AggregatedStats, limit: number = 20): void {
     console.log(
       `  ${padRight(tool.name, nameWidth)}  ${padLeft(formatNum(tool.calls), 7)}  ${padLeft(formatNum(tool.errors), 7)}  ${padLeft(errorPct, 7)}  ${padLeft(String(sessCount), 8)}  ${padLeft(sessPct, 6)}  ${lastUsed}`
     );
+  }
+
+  console.log();
+}
+
+/** Print the tool audit section. */
+export function printToolAudit(audit: ToolAudit): void {
+  console.log("  Tool Audit:\n");
+
+  // Never used
+  if (audit.neverUsed.length > 0) {
+    console.log("  🔴 Never used (registered but 0 calls across all sessions):");
+    for (const tool of audit.neverUsed) {
+      console.log(`     ${padRight(tool.name, 25)} (ext: ${tool.extension})`);
+    }
+  } else {
+    console.log("  🔴 Never used: (none — all registered tools have been called)");
+  }
+
+  // Rarely used
+  if (audit.rarelyUsed.length > 0) {
+    console.log("\n  🟡 Rarely used (< 5 calls total):");
+    for (const tool of audit.rarelyUsed) {
+      const label = tool.calls === 1 ? "call" : "calls";
+      console.log(`     ${padRight(tool.name, 25)} ${tool.calls} ${label}${padLeft(`(ext: ${tool.extension})`, 25)}`);
+    }
+  }
+
+  // By extension
+  console.log("\n  By extension:");
+  const extensions = [...audit.byExtension.entries()].sort(([a], [b]) => a.localeCompare(b));
+  for (const [ext, tools] of extensions) {
+    const toolList = tools
+      .sort((a, b) => b.calls - a.calls)
+      .map((t) => `${t.name} (${formatNum(t.calls)})`)
+      .join(", ");
+    const label = tools.length === 1 ? "tool" : "tools";
+    console.log(`     ${padRight(ext, 20)} ${tools.length} ${label}:  ${toolList}`);
   }
 
   console.log();
