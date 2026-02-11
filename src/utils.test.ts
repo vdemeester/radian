@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { formatNum, formatDuration, formatRelativeTime, formatPct, bar } from "./utils.js";
+import { formatNum, formatDuration, formatRelativeTime, formatPct, bar, splitModelKey } from "./utils.js";
 
 describe("formatNum", () => {
   it("formats small numbers with commas", () => {
@@ -104,5 +104,37 @@ describe("bar", () => {
   it("handles zero max", () => {
     const result = bar(5, 0, 10);
     expect(result).toBe("░░░░░░░░░░");
+  });
+});
+
+describe("splitModelKey", () => {
+  it("splits simple model@provider", () => {
+    const [model, provider] = splitModelKey("claude-opus-4-6@google-vertex-claude");
+    expect(model).toBe("claude-opus-4-6");
+    expect(provider).toBe("google-vertex-claude");
+  });
+
+  it("splits model with date suffix and provider", () => {
+    const [model, provider] = splitModelKey("claude-sonnet-4-5@20250929@google-vertex-claude");
+    expect(model).toBe("claude-sonnet-4-5@20250929");
+    expect(provider).toBe("google-vertex-claude");
+  });
+
+  it("handles model with no provider (just unknown)", () => {
+    const [model, provider] = splitModelKey("claude-opus-4-6@unknown");
+    expect(model).toBe("claude-opus-4-6");
+    expect(provider).toBe("unknown");
+  });
+
+  it("handles model with date suffix and no extra provider (fallback)", () => {
+    const [model, provider] = splitModelKey("claude-sonnet-4-5@20250929");
+    expect(model).toBe("claude-sonnet-4-5@20250929");
+    expect(provider).toBe("unknown");
+  });
+
+  it("handles model with no @ at all", () => {
+    const [model, provider] = splitModelKey("gpt-5-mini");
+    expect(model).toBe("gpt-5-mini");
+    expect(provider).toBe("unknown");
   });
 });

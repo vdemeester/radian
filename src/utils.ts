@@ -53,6 +53,24 @@ export function padLeft(s: string, width: number): string {
   return s.length >= width ? s : " ".repeat(width - s.length) + s;
 }
 
+/**
+ * Split a model key (model@provider) into [model, provider].
+ * Handles model names with embedded @date suffixes like "claude-sonnet-4-5@20250929".
+ * The provider is always the last @-segment that isn't purely numeric.
+ */
+export function splitModelKey(key: string): [string, string] {
+  const lastAt = key.lastIndexOf("@");
+  if (lastAt === -1) return [key, "unknown"];
+
+  const suffix = key.slice(lastAt + 1);
+  // If the last segment is all digits, it's a date suffix (part of model name), not a provider
+  if (/^\d+$/.test(suffix)) {
+    return [key, "unknown"];
+  }
+
+  return [key.slice(0, lastAt), suffix];
+}
+
 /** Create a simple horizontal bar using block characters. */
 export function bar(value: number, max: number, width: number = 30): string {
   if (max === 0) return "░".repeat(width);

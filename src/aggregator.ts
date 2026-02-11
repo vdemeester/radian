@@ -5,6 +5,7 @@
 
 import type { AggregatedStats, FilterOptions, ModelStats, SessionStats, ToolStats } from "./types.js";
 import { getFilterLabel, periodToRange } from "./filters.js";
+import { splitModelKey } from "./utils.js";
 
 /** Aggregate multiple session stats into a single summary. */
 export function aggregate(sessions: SessionStats[], filterOpts: FilterOptions): AggregatedStats {
@@ -72,7 +73,7 @@ export function aggregate(sessions: SessionStats[], filterOpts: FilterOptions): 
 
     // Aggregate models
     for (const [modelKey, modelData] of session.models) {
-      const [model, provider] = modelKey.split("@");
+      const [model, provider] = splitModelKey(modelKey);
       const existing = stats.models.get(modelKey);
       if (existing) {
         existing.calls += modelData.calls;

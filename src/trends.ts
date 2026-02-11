@@ -4,6 +4,7 @@
  */
 
 import type { PeriodName, SessionStats } from "./types.js";
+import { splitModelKey } from "./utils.js";
 
 export type BucketSize = "hourly" | "daily" | "weekly" | "monthly";
 export type TrendMetric = "tokens" | "sessions" | "tool-calls" | "messages";
@@ -132,13 +133,13 @@ function breakdownValues(
       break;
     case "model":
       for (const [key, data] of session.models) {
-        const model = key.split("@")[0];
+        const [model] = splitModelKey(key);
         result.set(model, metric === "tokens" ? data.tokens : data.calls);
       }
       break;
     case "provider":
       for (const [key, data] of session.models) {
-        const provider = key.split("@")[1] ?? "unknown";
+        const [, provider] = splitModelKey(key);
         const existing = result.get(provider) ?? 0;
         result.set(provider, existing + (metric === "tokens" ? data.tokens : data.calls));
       }
