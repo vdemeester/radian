@@ -10,7 +10,9 @@ import { filterSessions, getFilterLabel } from "./filters.js";
 import { aggregate } from "./aggregator.js";
 import { printSummary, printTools, printToolAudit, printModels, printProjects, printSessions } from "./formatters/table.js";
 import { printJson } from "./formatters/json.js";
+import { printTrend } from "./formatters/trends.js";
 import { discoverRegisteredTools, buildToolAudit } from "./inventory.js";
+import { getBucketSize, buildTimeSeries, type TrendMetric, type BreakdownDimension } from "./trends.js";
 import type { FilterOptions, PeriodName } from "./types.js";
 
 const program = new Command();
@@ -145,6 +147,39 @@ addCommonOptions(
     printJson(stats, "sessions");
   } else {
     printSessions(stats, parseInt(opts.limit));
+  }
+});
+
+// trends
+addCommonOptions(
+  program
+    .command("trends")
+    .description("Usage evolution over time")
+    .option("-m, --metric <metric>", "Metric: tokens, sessions, tool-calls, messages", "tokens")
+    .option("-b, --by <dimension>", "Break down by: tool, model, provider, project")
+    .option("--top <n>", "Top N items in breakdown", "5")
+).action((opts: CommonOpts & { metric: string; by?: string; top: string }) => {
+  const stats = loadAndAggregate(opts);
+  const bucketSize = getBucketSize(opts.period as PeriodName);
+  const metric = opts.metric as TrendMetric;
+  const breakdownOpts = opts.by
+    ? { by: opts.by as BreakdownDimension, top: parseInt(opts.top) }
+    : undefined;
+
+  const series = buildTimeSeries(stats.sessions, metric, bucketSize, breakdownOpts);
+
+  if (opts.format === "json") {
+    const jsonSeries = series.map((p) => ({
+      date: p.date.toISOString(),
+      label: p.label,
+      value: p.value,
+      breakdown: p.breakdown ? Object.fromEntries(p.breakdown) : undefined,
+    }));
+    console.log(JSON.stringify({ period: stats.period, metric, bucketSize, series: jsonSeries }, null, 2));
+  } else {
+    const byLabel = opts.by ? ` by ${opts.by}` : "";
+    const title = `${metric}${byLabel} (${stats.period.label}, ${bucketSize})`;
+    printTrend(series, title, metric);
   }
 });
 
