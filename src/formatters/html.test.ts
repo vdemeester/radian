@@ -118,6 +118,22 @@ describe("generateHtml", () => {
     expect(html).toContain("Cost");
   });
 
+  it("has sortable table headers", () => {
+    const html = generateHtml(sessions);
+    // Headers should have onclick for sorting
+    expect(html).toContain("onclick=\"sortTable");
+    // Sort indicators
+    expect(html).toContain("sort-indicator");
+    // Tables should have data-sortable attribute
+    expect(html).toContain("data-sortable");
+  });
+
+  it("tool table headers are sortable", () => {
+    const html = generateHtml(sessions);
+    // Tool table should have sortable Calls, Errors, Sess% columns
+    expect(html).toMatch(/onclick="sortTable\(this,[^)]*\)"/);
+  });
+
   it("is self-contained (no external resources)", () => {
     const html = generateHtml(sessions);
     // No external CSS/JS/fonts (footer link to github is fine)

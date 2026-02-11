@@ -270,9 +270,15 @@ ${CSS}
 <div class="section">
   <h2>Extension Tools</h2>
   <div class="chart-container" id="tool-chart">${toolChart}</div>
-  <table id="tool-table">
+  <table id="tool-table" data-sortable>
     <thead>
-      <tr><th>Tool</th><th class="bar-cell">Usage</th><th class="num">Calls</th><th class="num">Errors</th><th class="num">Sess%</th></tr>
+      <tr>
+        <th onclick="sortTable(this,0,'str')">Tool <span class="sort-indicator"></span></th>
+        <th class="bar-cell">Usage</th>
+        <th class="num" onclick="sortTable(this,2,'num')">Calls <span class="sort-indicator"></span></th>
+        <th class="num" onclick="sortTable(this,3,'num')">Errors <span class="sort-indicator"></span></th>
+        <th class="num" onclick="sortTable(this,4,'num')">Sess% <span class="sort-indicator"></span></th>
+      </tr>
     </thead>
     <tbody>${toolsTable}</tbody>
   </table>
@@ -284,9 +290,16 @@ ${CSS}
   <div class="models-layout">
     <div id="donut-chart">${donutChart}</div>
     <div class="models-table-wrap">
-      <table id="model-table">
+      <table id="model-table" data-sortable>
         <thead>
-          <tr><th></th><th>Model</th><th>Provider</th><th class="num">Calls</th><th class="num">Tokens</th>${data.hasCost ? '<th class="num">Cost</th>' : ''}</tr>
+          <tr>
+            <th></th>
+            <th onclick="sortTable(this,1,'str')">Model <span class="sort-indicator"></span></th>
+            <th onclick="sortTable(this,2,'str')">Provider <span class="sort-indicator"></span></th>
+            <th class="num" onclick="sortTable(this,3,'num')">Calls <span class="sort-indicator"></span></th>
+            <th class="num" onclick="sortTable(this,4,'num')">Tokens <span class="sort-indicator"></span></th>
+            ${data.hasCost ? '<th class="num" onclick="sortTable(this,5,\'num\')">Cost <span class="sort-indicator"></span></th>' : ''}
+          </tr>
         </thead>
         <tbody>${modelsTable}</tbody>
       </table>
@@ -387,7 +400,7 @@ function renderDonut(el, segments, centerLabel, centerSub) {
   el.innerHTML = s + '</svg>';
 }
 
-function renderToolTable(el, tools, hasCostFlag) {
+function renderToolTable(el, tools) {
   let rows = '';
   const maxV = tools.length > 0 ? tools[0].value : 0;
   tools.slice(0,15).forEach(t => {
@@ -396,6 +409,9 @@ function renderToolTable(el, tools, hasCostFlag) {
     rows += '<tr><td>'+esc(t.label)+'</td><td class="bar-cell"><span class="inline-bar" style="width:'+barW+'%"></span></td><td class="num">'+fmtNum(t.value)+'</td><td class="num"'+errStyle+'>'+t.errors+'</td><td class="num">'+t.sessPercent.toFixed(1)+'%</td></tr>';
   });
   el.querySelector('tbody').innerHTML = rows;
+  // Reset sort indicators
+  el.querySelectorAll('.sort-indicator').forEach(s => { s.className = 'sort-indicator'; });
+  el.querySelectorAll('th[data-sort-dir]').forEach(th => { delete th.dataset.sortDir; });
 }
 
 function renderModelTable(el, models) {
@@ -406,6 +422,40 @@ function renderModelTable(el, models) {
     rows += '</tr>';
   });
   el.querySelector('tbody').innerHTML = rows;
+  el.querySelectorAll('.sort-indicator').forEach(s => { s.className = 'sort-indicator'; });
+  el.querySelectorAll('th[data-sort-dir]').forEach(th => { delete th.dataset.sortDir; });
+}
+
+function sortTable(th, colIdx, type) {
+  const table = th.closest('table');
+  const tbody = table.querySelector('tbody');
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  const indicator = th.querySelector('.sort-indicator');
+
+  // Clear all indicators in this table
+  table.querySelectorAll('.sort-indicator').forEach(s => { s.className = 'sort-indicator'; });
+
+  // Toggle direction
+  const asc = th.dataset.sortDir !== 'asc';
+  th.dataset.sortDir = asc ? 'asc' : 'desc';
+  indicator.className = 'sort-indicator ' + (asc ? 'asc' : 'desc');
+
+  rows.sort((a, b) => {
+    let va = a.cells[colIdx]?.textContent?.trim() || '';
+    let vb = b.cells[colIdx]?.textContent?.trim() || '';
+    if (type === 'num') {
+      // Parse numbers: strip $, %, commas, M/K suffixes
+      const pn = (s) => {
+        s = s.replace(/[$,%]/g, '').replace(/,/g, '');
+        if (s.endsWith('M')) return parseFloat(s) * 1e6;
+        if (s.endsWith('K')) return parseFloat(s) * 1e3;
+        return parseFloat(s) || 0;
+      };
+      return asc ? pn(va) - pn(vb) : pn(vb) - pn(va);
+    }
+    return asc ? va.localeCompare(vb) : vb.localeCompare(va);
+  });
+  rows.forEach(r => tbody.appendChild(r));
 }
 
 function switchPeriod(period) {
@@ -525,6 +575,12 @@ tr:last-child td { border-bottom: none; }
 
 footer { text-align: center; color: var(--fg2); font-size: 0.75rem; margin-top: 2rem; padding: 1rem 0; }
 footer a { color: var(--accent); }
+
+th[onclick] { cursor: pointer; user-select: none; }
+th[onclick]:hover { color: var(--accent); }
+.sort-indicator { font-size: 0.65rem; opacity: 0.4; }
+.sort-indicator.asc::after { content: ' ▲'; opacity: 1; }
+.sort-indicator.desc::after { content: ' ▼'; opacity: 1; }
 
 svg text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; }
 
