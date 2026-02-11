@@ -3,7 +3,7 @@
  * Hand-rolled, no dependencies.
  */
 
-import type { AggregatedStats } from "../types.js";
+import type { AggregatedStats, ToolStats } from "../types.js";
 import { topBy } from "../aggregator.js";
 import type { ToolAudit } from "../inventory.js";
 import {
@@ -15,6 +15,29 @@ import {
   padLeft,
   bar,
 } from "../utils.js";
+
+const BUILTIN_TOOL_NAMES = new Set(["bash", "read", "edit", "write", "grep", "find", "ls"]);
+const DIM = "\x1b[2m";
+const RESET = "\x1b[0m";
+
+/** Classify tools into built-in and extension categories. */
+export function classifyTools(tools: Map<string, ToolStats>): { builtIn: ToolStats[]; extension: ToolStats[] } {
+  const builtIn: ToolStats[] = [];
+  const extension: ToolStats[] = [];
+
+  for (const tool of tools.values()) {
+    if (BUILTIN_TOOL_NAMES.has(tool.name)) {
+      builtIn.push(tool);
+    } else {
+      extension.push(tool);
+    }
+  }
+
+  builtIn.sort((a, b) => b.calls - a.calls);
+  extension.sort((a, b) => b.calls - a.calls);
+
+  return { builtIn, extension };
+}
 
 /** Print the summary overview. */
 export function printSummary(stats: AggregatedStats): void {
@@ -51,38 +74,67 @@ export function printSummary(stats: AggregatedStats): void {
   console.log();
 }
 
+/** Print a tool row. */
+function printToolRow(
+  tool: ToolStats,
+  nameWidth: number,
+  totalSessions: number,
+  dim: boolean,
+): void {
+  const errorPct = formatPct(tool.errors, tool.calls);
+  const sessCount = tool.sessionIds.size;
+  const sessPct = formatPct(sessCount, totalSessions);
+  const lastUsed = formatRelativeTime(tool.lastUsed);
+
+  const line = `  ${padRight(tool.name, nameWidth)}  ${padLeft(formatNum(tool.calls), 7)}  ${padLeft(formatNum(tool.errors), 7)}  ${padLeft(errorPct, 7)}  ${padLeft(String(sessCount), 8)}  ${padLeft(sessPct, 6)}  ${lastUsed}`;
+  console.log(dim ? `${DIM}${line}${RESET}` : line);
+}
+
 /** Print the tool usage breakdown table. */
 export function printTools(stats: AggregatedStats, limit: number = 20): void {
   const { period } = stats;
-  const allTools = [...stats.tools.values()].sort((a, b) => b.calls - a.calls);
-  const total = allTools.length;
-  const tools = allTools.slice(0, limit);
-  const showing = total > limit ? ` (showing ${limit} of ${total})` : "";
-  console.log(`\n  Tool Usage — ${period.label}${showing}\n`);
+  const { builtIn, extension } = classifyTools(stats.tools);
 
-  if (tools.length === 0) {
+  if (builtIn.length === 0 && extension.length === 0) {
+    console.log(`\n  Tool Usage — ${period.label}\n`);
     console.log("  No tool calls in this period.\n");
     return;
   }
 
-  // Determine column widths
-  const nameWidth = Math.max(4, ...tools.map((t) => t.name.length));
-  const maxCalls = Math.max(...tools.map((t) => t.calls));
+  // Compute sessions that used at least one extension tool
+  const extSessionIds = new Set<string>();
+  for (const tool of extension) {
+    for (const id of tool.sessionIds) extSessionIds.add(id);
+  }
+  const extSessions = extSessionIds.size;
+
+  const allTools = [...builtIn, ...extension];
+  const nameWidth = Math.max(4, ...allTools.map((t) => t.name.length));
 
   // Header
   const header = `  ${padRight("Tool", nameWidth)}  ${padLeft("Calls", 7)}  ${padLeft("Errors", 7)}  ${padLeft("Error%", 7)}  ${padLeft("Sessions", 8)}  ${padLeft("Sess%", 6)}  Last Used`;
-  console.log(header);
-  console.log(`  ${"─".repeat(header.length - 2)}`);
 
-  for (const tool of tools) {
-    const errorPct = formatPct(tool.errors, tool.calls);
-    const sessCount = tool.sessionIds.size;
-    const sessPct = formatPct(sessCount, stats.totalSessions);
-    const lastUsed = formatRelativeTime(tool.lastUsed);
+  // Extension tools first (these are the interesting ones)
+  if (extension.length > 0) {
+    const extShowing = extension.length > limit ? ` (showing ${limit} of ${extension.length})` : "";
+    console.log(`\n  Extension Tools — ${period.label}${extShowing}  (Sess%: of ${extSessions} sessions using extensions)\n`);
+    console.log(header);
+    console.log(`  ${"─".repeat(header.length - 2)}`);
 
-    console.log(
-      `  ${padRight(tool.name, nameWidth)}  ${padLeft(formatNum(tool.calls), 7)}  ${padLeft(formatNum(tool.errors), 7)}  ${padLeft(errorPct, 7)}  ${padLeft(String(sessCount), 8)}  ${padLeft(sessPct, 6)}  ${lastUsed}`
-    );
+    for (const tool of extension.slice(0, limit)) {
+      printToolRow(tool, nameWidth, extSessions, false);
+    }
+  }
+
+  // Built-in tools (dimmed, always shown)
+  if (builtIn.length > 0) {
+    console.log(`\n  ${DIM}Core Tools — ${period.label}  (Sess%: of ${stats.totalSessions} total sessions)${RESET}\n`);
+    console.log(`${DIM}${header}${RESET}`);
+    console.log(`${DIM}  ${"─".repeat(header.length - 2)}${RESET}`);
+
+    for (const tool of builtIn) {
+      printToolRow(tool, nameWidth, stats.totalSessions, true);
+    }
   }
 
   console.log();
