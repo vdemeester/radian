@@ -182,8 +182,8 @@ export function generateHtml(sessions: SessionStats[], defaultPeriod: PeriodName
   const costCard = data.hasCost
     ? `<div class="card">
         <div class="card-label">Cost</div>
-        <div class="card-value">$${pd.summary.cost.toFixed(2)}</div>
-        <div class="card-sub">$${pd.summary.sessions > 0 ? (pd.summary.cost / pd.summary.sessions).toFixed(2) : '0.00'} avg/session</div>
+        <div class="card-value" data-field="cost">$${pd.summary.cost.toFixed(2)}</div>
+        <div class="card-sub" data-field="costAvg">$${pd.summary.sessions > 0 ? (pd.summary.cost / pd.summary.sessions).toFixed(2) : '0.00'} avg/session</div>
       </div>`
     : "";
 
