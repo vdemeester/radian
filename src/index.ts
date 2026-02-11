@@ -11,9 +11,14 @@ import { aggregate } from "./aggregator.js";
 import { printSummary, printTools, printToolAudit, printModels, printProjects, printSessions } from "./formatters/table.js";
 import { printJson } from "./formatters/json.js";
 import { printTrend } from "./formatters/trends.js";
+import { generateHtml } from "./formatters/html.js";
 import { discoverRegisteredTools, buildToolAudit } from "./inventory.js";
 import { getBucketSize, buildTimeSeries, type TrendMetric, type BreakdownDimension } from "./trends.js";
 import type { FilterOptions, PeriodName } from "./types.js";
+import { writeFileSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
+import { execSync } from "child_process";
 
 const program = new Command();
 
@@ -59,12 +64,16 @@ function buildFilterOpts(opts: CommonOpts): FilterOptions {
   };
 }
 
-function loadAndAggregate(opts: CommonOpts) {
-  const allSessions = parseAllSessions({
+function loadSessions(opts: CommonOpts) {
+  return parseAllSessions({
     sessionsDir: opts.sessionsDir,
     cacheDir: opts.cacheDir,
     noCache: !opts.cache,
   });
+}
+
+function loadAndAggregate(opts: CommonOpts) {
+  const allSessions = loadSessions(opts);
   const filterOpts = buildFilterOpts(opts);
   const filtered = filterSessions(allSessions, filterOpts);
   return aggregate(filtered, filterOpts);
@@ -181,6 +190,31 @@ addCommonOptions(
     const title = `${metric}${byLabel} (${stats.period.label}, ${bucketSize})`;
     printTrend(series, title, metric);
   }
+});
+
+// report (HTML dashboard)
+addCommonOptions(
+  program
+    .command("report")
+    .description("Generate HTML dashboard (all sections)")
+    .option("-o, --output <path>", "Output file path (default: temp file, opens browser)")
+).action((opts: CommonOpts & { output?: string }) => {
+  const sessions = loadSessions(opts);
+  const html = generateHtml(sessions, opts.period as PeriodName);
+
+  const outPath = opts.output ?? join(tmpdir(), `radian-report-${Date.now()}.html`);
+  writeFileSync(outPath, html);
+
+  if (!opts.output) {
+    // Open in browser
+    try {
+      execSync(`xdg-open "${outPath}"`, { stdio: "ignore" });
+    } catch {
+      try { execSync(`open "${outPath}"`, { stdio: "ignore" }); } catch { /* ignore */ }
+    }
+  }
+
+  console.log(`Dashboard written to ${outPath}`);
 });
 
 program.parse();
