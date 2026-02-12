@@ -21,9 +21,8 @@ jobs:
           # Checkout the PR branch (pull_request_target runs in base context)
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
-          # GITHUB_TOKEN has permission to push to Dependabot branches
-          # But won't trigger CI - we'll add a label to trigger re-run
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # Use SBR_BOT_TOKEN so commits trigger CI workflows
+          token: ${{ secrets.SBR_BOT_TOKEN }}
 
       - uses: DeterminateSystems/nix-installer-action@e50d5f73bfe71c2dd0aa4218de8f4afa59f8f81d # v16
       
@@ -60,11 +59,3 @@ jobs:
           git add flake.nix
           git commit -m "chore: update npmDepsHash for dependency changes"
           git push
-      
-      - name: Trigger CI via Dependabot rebase
-        if: steps.check-changes.outputs.changed == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Comment to trigger Dependabot rebase, which will trigger CI
-          gh pr comment ${{ github.event.pull_request.number }} --body "@dependabot rebase"
