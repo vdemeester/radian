@@ -107,6 +107,32 @@ npm run build
 node dist/index.js summary
 ```
 
+### Nix Development
+
+The project includes a Nix flake for reproducible builds:
+
+```bash
+# Enter development shell
+nix develop
+
+# Build with Nix
+nix build .#radian
+
+# Run the Nix-built binary
+./result/bin/radian
+```
+
+**Important for maintainers:** When npm dependencies change (e.g., via Dependabot), the `npmDepsHash` in `flake.nix` must be updated:
+
+```bash
+# Automatic (via workflow): The update-npm-hash workflow runs on Dependabot PRs
+# Manual update:
+nix develop  # or ensure prefetch-npm-deps is available
+./scripts/update-npm-hash.sh
+```
+
+This is automated via GitHub Actions for Dependabot PRs, but the script is useful for manual dependency updates.
+
 ## License
 
 MIT

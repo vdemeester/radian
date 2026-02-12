@@ -1,0 +1,60 @@
+name: Update npmDepsHash
+
+on:
+  pull_request:
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-npm-hash:
+    # Only run on Dependabot PRs
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          # Use the PR head ref so we can commit to the PR branch
+          ref: ${{ github.head_ref }}
+          # Use a token that can push to the PR (GitHub's GITHUB_TOKEN works for dependabot PRs)
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: DeterminateSystems/nix-installer-action@e50d5f73bfe71c2dd0aa4218de8f4afa59f8f81d # v16
+      
+      - name: Calculate new npmDepsHash
+        id: npm-hash
+        run: |
+          # Use nix-prefetch to calculate the hash
+          HASH=$(nix run nixpkgs#prefetch-npm-deps package-lock.json 2>&1)
+          echo "hash=$HASH" >> $GITHUB_OUTPUT
+          echo "New npmDepsHash: $HASH"
+
+      - name: Update flake.nix with new hash
+        run: |
+          NEW_HASH="${{ steps.npm-hash.outputs.hash }}"
+          # Update the npmDepsHash line in flake.nix
+          sed -i "s|npmDepsHash = \"sha256-.*\";|npmDepsHash = \"$NEW_HASH\";|g" flake.nix
+          
+      - name: Check if flake.nix was modified
+        id: check-changes
+        run: |
+          if git diff --quiet flake.nix; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No changes needed to flake.nix"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "flake.nix was updated"
+          fi
+
+      - name: Commit changes
+        if: steps.check-changes.outputs.changed == 'true'
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add flake.nix
+          git commit -m "chore: update npmDepsHash for dependency changes"
+          git push
