@@ -20,8 +20,8 @@ jobs:
         with:
           # Use the PR head ref so we can commit to the PR branch
           ref: ${{ github.head_ref }}
-          # Use SBR_TOKEN so commits trigger CI workflows
-          token: ${{ secrets.SBR_TOKEN }}
+          # Use SBR_BOT_TOKEN so commits trigger CI workflows
+          token: ${{ secrets.SBR_BOT_TOKEN }}
 
       - uses: DeterminateSystems/nix-installer-action@e50d5f73bfe71c2dd0aa4218de8f4afa59f8f81d # v16
       
