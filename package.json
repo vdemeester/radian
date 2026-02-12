@@ -21,7 +21,7 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "commander": "^13.1.0"
+    "commander": "^14.0.3"
   },
   "devDependencies": {
     "@types/node": "^25.2.3",
