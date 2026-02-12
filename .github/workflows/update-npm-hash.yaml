@@ -1,7 +1,7 @@
 name: Update npmDepsHash
 
 on:
-  pull_request:
+  pull_request_target:
     paths:
       - 'package.json'
       - 'package-lock.json'
@@ -18,8 +18,9 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          # Use the PR head ref so we can commit to the PR branch
-          ref: ${{ github.head_ref }}
+          # Checkout the PR branch (pull_request_target runs in base context)
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
           # Use SBR_BOT_TOKEN so commits trigger CI workflows
           token: ${{ secrets.SBR_BOT_TOKEN }}
 
