@@ -3,14 +3,14 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
+    flake-parts.url = "github:hercules-ci/flake-parts";
   };
 
   outputs =
-    {
+    inputs@{
       self,
       nixpkgs,
-      flake-utils,
+      flake-parts,
     }:
     let
       buildRadian =
@@ -54,32 +54,38 @@
           };
         };
     in
-    {
-      overlays.default = _final: prev: {
-        radian = buildRadian prev;
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "aarch64-darwin"
+      ];
+
+      perSystem =
+        { pkgs, ... }:
+        {
+          packages = {
+            radian = buildRadian pkgs;
+            default = buildRadian pkgs;
+          };
+
+          checks = {
+            radian = buildRadian pkgs;
+          };
+
+          devShells.default = pkgs.mkShell {
+            buildInputs = with pkgs; [
+              nodejs_22
+              prefetch-npm-deps
+            ];
+          };
+        };
+
+      flake = {
+        overlays.default = _final: prev: {
+          radian = buildRadian prev;
+        };
       };
-    }
-    // flake-utils.lib.eachDefaultSystem (
-      system:
-      let
-        pkgs = nixpkgs.legacyPackages.${system};
-      in
-      {
-        packages = {
-          radian = buildRadian pkgs;
-          default = self.packages.${system}.radian;
-        };
-
-        checks = {
-          radian = self.packages.${system}.radian;
-        };
-
-        devShells.default = pkgs.mkShell {
-          buildInputs = with pkgs; [
-            nodejs_22
-            prefetch-npm-deps
-          ];
-        };
-      }
-    );
+    };
 }
