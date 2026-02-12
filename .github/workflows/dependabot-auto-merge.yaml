@@ -28,7 +28,7 @@ jobs:
           # Approve the PR (required if branch protection needs approval)
           gh pr review --approve "$PR_URL" || true
           # Enable auto-merge (will merge when all checks pass)
-          gh pr merge --auto --squash "$PR_URL"
+          gh pr merge --auto --rebase "$PR_URL"
           echo "✅ Auto-merge enabled for ${{ steps.metadata.outputs.update-type }} update"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
