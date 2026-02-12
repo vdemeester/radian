@@ -28,8 +28,8 @@ jobs:
       - name: Calculate new npmDepsHash
         id: npm-hash
         run: |
-          # Use nix-prefetch to calculate the hash
-          HASH=$(nix run nixpkgs#prefetch-npm-deps package-lock.json 2>&1)
+          # Use nix-prefetch to calculate the hash (redirect stderr to suppress Nix logs)
+          HASH=$(nix run nixpkgs#prefetch-npm-deps package-lock.json 2>/dev/null)
           echo "hash=$HASH" >> $GITHUB_OUTPUT
           echo "New npmDepsHash: $HASH"
 
