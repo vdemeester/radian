@@ -26,13 +26,14 @@ jobs:
           steps.metadata.outputs.update-type == 'version-update:semver-minor'
         run: |
           # Approve the PR (required if branch protection needs approval)
+          # Uses SBR_BOT_TOKEN so approval comes from the bot, not the user
           gh pr review --approve "$PR_URL" || true
           # Enable auto-merge (will merge when all checks pass)
           gh pr merge --auto --rebase "$PR_URL"
           echo "✅ Auto-merge enabled for ${{ steps.metadata.outputs.update-type }} update"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.SBR_BOT_TOKEN }}
       
       - name: Comment on major version updates
         if: steps.metadata.outputs.update-type == 'version-update:semver-major'
@@ -40,4 +41,4 @@ jobs:
           gh pr comment "$PR_URL" --body "⚠️ This is a **major version** update. Please review manually before merging."
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.SBR_BOT_TOKEN }}
