@@ -35,7 +35,12 @@ export function discoverSessionFiles(sessionsDir?: string): string[] {
   const files: string[] = [];
   for (const projectDir of readdirSync(dir)) {
     const projectPath = join(dir, projectDir);
-    const stat = statSync(projectPath);
+    let stat;
+    try {
+      stat = statSync(projectPath);
+    } catch {
+      continue; // Skip broken symlinks or inaccessible entries
+    }
     if (!stat.isDirectory()) continue;
 
     for (const file of readdirSync(projectPath)) {
