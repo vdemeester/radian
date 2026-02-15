@@ -65,6 +65,7 @@ radian report -o ~/report.html
 | `--from <date>`      | Start date (YYYY-MM-DD)                                |           |
 | `--to <date>`        | End date (YYYY-MM-DD)                                  |           |
 | `--project <path>`   | Filter by project path (substring match)               |           |
+| `--exclude-project`  | Exclude projects by path (substring match, repeatable) |           |
 | `-f, --format`       | `table`, `json`                                        | `table`   |
 | `-l, --limit <n>`    | Max rows in tables                                     | `20`      |
 | `--sessions-dir`     | Override pi session directory                          |           |

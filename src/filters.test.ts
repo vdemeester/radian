@@ -135,6 +135,37 @@ describe("filterSessions", () => {
     const result = filterSessions(sessions, { period: "year", project: "home" });
     expect(result.map((s) => s.id)).toEqual(["s1", "s3"]);
   });
+
+  it("excludes a single project", () => {
+    const result = filterSessions(sessions, { period: "all", excludeProjects: ["home"] });
+    expect(result.map((s) => s.id)).toEqual(["s2", "s4"]);
+  });
+
+  it("excludes multiple projects", () => {
+    const result = filterSessions(sessions, { period: "all", excludeProjects: ["home", "nixpkgs"] });
+    expect(result.map((s) => s.id)).toEqual(["s2"]);
+  });
+
+  it("exclude filter is case-insensitive", () => {
+    const result = filterSessions(sessions, { period: "all", excludeProjects: ["HOME"] });
+    expect(result.map((s) => s.id)).toEqual(["s2", "s4"]);
+  });
+
+  it("exclude uses substring match", () => {
+    const result = filterSessions(sessions, { period: "all", excludeProjects: ["tekton"] });
+    expect(result.map((s) => s.id)).toEqual(["s1", "s3", "s4"]);
+  });
+
+  it("combines period, project, and exclude filters", () => {
+    // year includes s1, s2, s3. Exclude "home" removes s1 and s3.
+    const result = filterSessions(sessions, { period: "year", excludeProjects: ["home"] });
+    expect(result.map((s) => s.id)).toEqual(["s2"]);
+  });
+
+  it("empty exclude list has no effect", () => {
+    const result = filterSessions(sessions, { period: "all", excludeProjects: [] });
+    expect(result.length).toBe(4);
+  });
 });
 
 describe("getFilterLabel", () => {

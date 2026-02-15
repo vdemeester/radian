@@ -34,8 +34,10 @@ function addCommonOptions(cmd: Command): Command {
     .option("--from <date>", "Start date (YYYY-MM-DD)")
     .option("--to <date>", "End date (YYYY-MM-DD)")
     .option("--project <path>", "Filter by project path (substring match)")
+    .option("--exclude-project <path>", "Exclude projects by path (substring match, comma-separated or repeatable)", (val: string, acc: string[]) => { acc.push(...val.split(",")); return acc; }, [] as string[])
     .option("-f, --format <format>", "Output format: table, json", "table")
     .option("-l, --limit <n>", "Max rows in tables", "20")
+    .option("--show-cost", "Show cost information (hidden by default)")
     .option("--sessions-dir <path>", "Override session directory")
     .option("--no-cache", "Bypass cache, force re-parse")
     .option("--cache-dir <path>", "Override cache directory")
@@ -47,8 +49,10 @@ interface CommonOpts {
   from?: string;
   to?: string;
   project?: string;
+  excludeProject?: string[];
   format: string;
   limit: string;
+  showCost?: boolean;
   sessionsDir?: string;
   cache: boolean;
   cacheDir?: string;
@@ -61,6 +65,7 @@ function buildFilterOpts(opts: CommonOpts): FilterOptions {
     from: opts.from ? new Date(opts.from) : undefined,
     to: opts.to ? new Date(opts.to) : undefined,
     project: opts.project,
+    excludeProjects: opts.excludeProject,
   };
 }
 
@@ -87,9 +92,9 @@ addCommonOptions(
 ).action((opts: CommonOpts) => {
   const stats = loadAndAggregate(opts);
   if (opts.format === "json") {
-    printJson(stats, "summary");
+    printJson(stats, "summary", { showCost: !!opts.showCost });
   } else {
-    printSummary(stats);
+    printSummary(stats, { showCost: !!opts.showCost });
   }
 });
 
@@ -102,7 +107,7 @@ addCommonOptions(
 ).action((opts: CommonOpts & { audit?: boolean }) => {
   const stats = loadAndAggregate(opts);
   if (opts.format === "json") {
-    printJson(stats, "tools");
+    printJson(stats, "tools", { showCost: !!opts.showCost });
   } else {
     printTools(stats, parseInt(opts.limit));
     if (opts.audit) {
@@ -125,9 +130,9 @@ addCommonOptions(
 ).action((opts: CommonOpts) => {
   const stats = loadAndAggregate(opts);
   if (opts.format === "json") {
-    printJson(stats, "models");
+    printJson(stats, "models", { showCost: !!opts.showCost });
   } else {
-    printModels(stats, parseInt(opts.limit));
+    printModels(stats, parseInt(opts.limit), { showCost: !!opts.showCost });
   }
 });
 
@@ -139,7 +144,7 @@ addCommonOptions(
 ).action((opts: CommonOpts) => {
   const stats = loadAndAggregate(opts);
   if (opts.format === "json") {
-    printJson(stats, "projects");
+    printJson(stats, "projects", { showCost: !!opts.showCost });
   } else {
     printProjects(stats, parseInt(opts.limit));
   }
@@ -153,7 +158,7 @@ addCommonOptions(
 ).action((opts: CommonOpts) => {
   const stats = loadAndAggregate(opts);
   if (opts.format === "json") {
-    printJson(stats, "sessions");
+    printJson(stats, "sessions", { showCost: !!opts.showCost });
   } else {
     printSessions(stats, parseInt(opts.limit));
   }
@@ -199,8 +204,21 @@ addCommonOptions(
     .description("Generate HTML dashboard (all sections)")
     .option("-o, --output <path>", "Output file path (default: temp file, opens browser)")
 ).action((opts: CommonOpts & { output?: string }) => {
-  const sessions = loadSessions(opts);
-  const html = generateHtml(sessions, opts.period as PeriodName);
+  let sessions = loadSessions(opts);
+  // Apply project filters before passing to HTML generator (which does its own period filtering)
+  if (opts.project || opts.excludeProject) {
+    sessions = sessions.filter((s) => {
+      const proj = s.project.toLowerCase();
+      if (opts.project && !proj.includes(opts.project.toLowerCase())) return false;
+      if (opts.excludeProject) {
+        for (const exclude of opts.excludeProject) {
+          if (proj.includes(exclude.toLowerCase())) return false;
+        }
+      }
+      return true;
+    });
+  }
+  const html = generateHtml(sessions, opts.period as PeriodName, { showCost: !!opts.showCost });
 
   const outPath = opts.output ?? join(tmpdir(), `radian-report-${Date.now()}.html`);
   writeFileSync(outPath, html);

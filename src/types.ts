@@ -191,4 +191,5 @@ export interface FilterOptions {
   from?: Date;
   to?: Date;
   project?: string;
+  excludeProjects?: string[];
 }

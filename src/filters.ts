@@ -75,6 +75,14 @@ export function filterSessions(sessions: SessionStats[], opts: FilterOptions): S
       if (!proj.includes(filter)) return false;
     }
 
+    // Project exclusion filter (substring match)
+    if (opts.excludeProjects && opts.excludeProjects.length > 0) {
+      const proj = s.project.toLowerCase();
+      for (const exclude of opts.excludeProjects) {
+        if (proj.includes(exclude.toLowerCase())) return false;
+      }
+    }
+
     return true;
   });
 }
