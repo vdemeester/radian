@@ -33,6 +33,10 @@ interface DashboardPeriodData {
   period: { label: string };
 }
 
+export interface HtmlDisplayOptions {
+  showCost?: boolean;
+}
+
 interface DashboardData {
   periods: Record<string, DashboardPeriodData>;
   heatmap: { date: string; value: number }[];
@@ -51,7 +55,7 @@ const PERIOD_NAMES: PeriodName[] = ["today", "week", "month", "quarter", "year",
 // Build dashboard data
 // ═══════════════════════════════════════
 
-export function buildDashboardData(sessions: SessionStats[]): DashboardData {
+export function buildDashboardData(sessions: SessionStats[], opts: HtmlDisplayOptions = {}): DashboardData {
   const periods: Record<string, DashboardPeriodData> = {};
 
   for (const periodName of PERIOD_NAMES) {
@@ -115,7 +119,7 @@ export function buildDashboardData(sessions: SessionStats[]): DashboardData {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, value]) => ({ date, value }));
 
-  const hasCost = sessions.some(s => s.cost > 0);
+  const hasCost = !!opts.showCost && sessions.some(s => s.cost > 0);
 
   return {
     periods,
@@ -129,8 +133,8 @@ export function buildDashboardData(sessions: SessionStats[]): DashboardData {
 // Generate HTML
 // ═══════════════════════════════════════
 
-export function generateHtml(sessions: SessionStats[], defaultPeriod: PeriodName = "week"): string {
-  const data = buildDashboardData(sessions);
+export function generateHtml(sessions: SessionStats[], defaultPeriod: PeriodName = "week", opts: HtmlDisplayOptions = {}): string {
+  const data = buildDashboardData(sessions, opts);
   const pd = data.periods[defaultPeriod] ?? data.periods["all"];
 
   // Pre-render SVG charts for the default period

@@ -103,18 +103,24 @@ describe("generateHtml", () => {
     expect(html).toContain("<script>");
   });
 
-  it("hides cost when all zero", () => {
+  it("hides cost by default even when non-zero", () => {
+    const html = generateHtml(sessions);
+    // Cost card should not appear without showCost flag
+    expect(html).not.toContain('class="card-label">Cost');
+  });
+
+  it("hides cost when showCost is true but all zero", () => {
     const zeroCostSessions = [
       makeSession({ id: "s1", cost: 0 }),
       makeSession({ id: "s2", cost: 0 }),
     ];
-    const html = generateHtml(zeroCostSessions);
+    const html = generateHtml(zeroCostSessions, "week", { showCost: true });
     // Cost card should not appear
     expect(html).not.toContain('class="card-label">Cost');
   });
 
-  it("shows cost when non-zero", () => {
-    const html = generateHtml(sessions);
+  it("shows cost when showCost is true and non-zero", () => {
+    const html = generateHtml(sessions, "week", { showCost: true });
     expect(html).toContain("Cost");
   });
 

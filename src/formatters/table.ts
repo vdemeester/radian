@@ -39,8 +39,12 @@ export function classifyTools(tools: Map<string, ToolStats>): { builtIn: ToolSta
   return { builtIn, extension };
 }
 
+export interface DisplayOptions {
+  showCost?: boolean;
+}
+
 /** Print the summary overview. */
-export function printSummary(stats: AggregatedStats): void {
+export function printSummary(stats: AggregatedStats, opts: DisplayOptions = {}): void {
   const { period } = stats;
   console.log(`\n  radian — ${period.label}\n`);
   console.log(`  ${"─".repeat(60)}`);
@@ -50,7 +54,7 @@ export function printSummary(stats: AggregatedStats): void {
   console.log(`  Tool calls        ${padLeft(formatNum(stats.totalToolCalls), 10)}    (errors: ${formatNum(stats.totalToolErrors)}, rate: ${formatPct(stats.totalToolErrors, stats.totalToolCalls)})`);
   console.log(`  Tokens            ${padLeft(formatNum(stats.totalTokens.total), 10)}    (in: ${formatNum(stats.totalTokens.input)}, out: ${formatNum(stats.totalTokens.output)}, cache: ${formatNum(stats.totalTokens.cacheRead)})`);
 
-  if (stats.totalCost > 0) {
+  if (opts.showCost && stats.totalCost > 0) {
     console.log(`  Cost              ${padLeft(`$${stats.totalCost.toFixed(2)}`, 10)}`);
   }
 
@@ -179,7 +183,7 @@ export function printToolAudit(audit: ToolAudit): void {
 }
 
 /** Print the models breakdown table. */
-export function printModels(stats: AggregatedStats, limit: number = 20): void {
+export function printModels(stats: AggregatedStats, limit: number = 20, opts: DisplayOptions = {}): void {
   const { period } = stats;
   console.log(`\n  Models — ${period.label}\n`);
 
@@ -192,7 +196,7 @@ export function printModels(stats: AggregatedStats, limit: number = 20): void {
 
   const nameWidth = Math.max(5, ...models.map((m) => m.model.length));
   const provWidth = Math.max(8, ...models.map((m) => m.provider.length));
-  const hasCost = models.some((m) => m.cost > 0);
+  const hasCost = opts.showCost && models.some((m) => m.cost > 0);
 
   let header = `  ${padRight("Model", nameWidth)}  ${padRight("Provider", provWidth)}  ${padLeft("Calls", 7)}  ${padLeft("Tokens", 10)}`;
   if (hasCost) header += `  ${padLeft("Cost", 8)}`;
