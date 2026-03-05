@@ -24,7 +24,7 @@ jobs:
           # Use SBR_BOT_TOKEN so commits trigger CI workflows
           token: ${{ secrets.SBR_BOT_TOKEN }}
 
-      - uses: DeterminateSystems/nix-installer-action@e50d5f73bfe71c2dd0aa4218de8f4afa59f8f81d # v16
+      - uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
       
       - name: Calculate new npmDepsHash
         id: npm-hash
