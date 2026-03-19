@@ -21,7 +21,7 @@
 
           src = ./.;
 
-          npmDepsHash = "sha256-MC5x16FR/84U3rQjq1AqlQpGUhoQrIGj9auuAB7PGZQ=";
+          npmDepsHash = "sha256-mWRc1bUIplRpoBvbSp/2haiNlYCyCrAzLpH8nPCOoFw=";
 
           # Build TypeScript
           buildPhase = ''
